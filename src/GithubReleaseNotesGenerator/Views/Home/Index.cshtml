@@ -1,0 +1,103 @@
+﻿@model ReleaseNotesViewModel
+
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome</h1>
+    <p>Fill in the form below to generate comprehensive release notes based upon merged pull requests.</p>
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <form asp-action="Index" method="post" class="text-left">
+                <div class="form-group">
+                    <label asp-for="PatToken"></label>
+                    <input asp-for="PatToken" type="password" class="form-control" />
+                    <span asp-validation-for="PatToken" class="text-danger"></span>
+                </div>
+                <div class="form-group">
+                    <label asp-for="RepositoryOwner"></label>
+                    <input asp-for="RepositoryOwner" class="form-control" />
+                    <span asp-validation-for="RepositoryOwner" class="text-danger"></span>
+                </div>
+                <div class="form-group">
+                    <label asp-for="RepositoryName"></label>
+                    <input asp-for="RepositoryName" class="form-control" />
+                    <span asp-validation-for="RepositoryName" class="text-danger"></span>
+                </div>
+                <div class="form-group">
+                    <label asp-for="From"></label>
+                    <p class="form-note">GitHub reference (commit, branch, tag) of the last release</p>
+                    <input asp-for="From" class="form-control" />
+                    <span asp-validation-for="From" class="text-danger"></span>
+                </div>
+                <div class="form-group">
+                    <label asp-for="To"></label>
+                    <p class="form-note">GitHub reference (commit, branch, tag) of the current release</p>
+                    <input asp-for="To" class="form-control" />
+                    <span asp-validation-for="To" class="text-danger"></span>
+                </div>
+                <div class="form-group">
+                    <label asp-for="BreakingLabel"></label>
+                    <p class="form-note">An optional label that is used to differenciate PRs containing breaking changes.</p>
+                    <input asp-for="BreakingLabel" class="form-control" placeholder="breaking" />
+                </div>
+
+                <div class="text-right">
+                    <p>
+                        <button type="submit" class="btn btn-primary">Submit</button>
+                    </p>
+                </div>
+            </form>
+        </div>
+    </div>
+    <br />
+    <br />
+    @if (!string.IsNullOrWhiteSpace(Model.RawNotes))
+    {
+        <div class="text-left">
+            <nav>
+                <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                    <a class="nav-item nav-link active"
+                       id="nav-raw-tab"
+                       data-toggle="tab"
+                       href="#nav-raw"
+                       role="tab" a
+                       ria-controls="nav-raw"
+                       aria-selected="true">Notes</a>
+                    <a class="nav-item nav-link"
+                       id="nav-preview-tab"
+                       data-toggle="tab"
+                       href="#nav-preview"
+                       role="tab"
+                       aria-controls="nav-preview"
+                       aria-selected="false">Preview</a>
+                </div>
+            </nav>
+            <div class="tab-content" id="nav-tabContent">
+                <div class="tab-pane fade show active"
+                     id="nav-raw"
+                     role="tabpanel"
+                     aria-labelledby="nav-raw-tab">
+                    <div class="text-right clipboard">
+                        <button class="btn btn-clipboard">
+                            <span>Copy</span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 896 1024"><path d="M128 768h256v64H128v-64zm320-384H128v64h320v-64zm128 192V448L384 640l192 192V704h320V576H576zm-288-64H128v64h160v-64zM128 704h160v-64H128v64zm576 64h64v128c-1 18-7 33-19 45s-27 18-45 19H64c-35 0-64-29-64-64V192c0-35 29-64 64-64h192C256 57 313 0 384 0s128 57 128 128h192c35 0 64 29 64 64v320h-64V320H64v576h640V768zM128 256h512c0-35-29-64-64-64h-64c-35 0-64-29-64-64s-29-64-64-64-64 29-64 64-29 64-64 64h-64c-35 0-64 29-64 64z" /></svg>
+                        </button>
+                    </div>
+                    <pre class="p-3"><code>@Model.RawNotes</code></pre>
+                </div>
+                <div class="tab-pane fade p-3"
+                     id="nav-preview"
+                     role="tabpanel"
+                     aria-labelledby="nav-preview-tab">
+                    @Model.FormattedNotes
+                </div>
+            </div>
+        </div>
+    }
+
+    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+</div>
+@section Scripts{
+    <partial name="_ValidationScriptsPartial" />
+}
