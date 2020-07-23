@@ -3,6 +3,8 @@
 
 // Write your JavaScript code.
 $(function () {
+
+    // Wire up the clipboard.
     var clipboard = new ClipboardJS(".btn-clipboard", {
         target: function (trigger) {
             return trigger.parentNode.nextElementSibling;
@@ -12,4 +14,12 @@ $(function () {
     clipboard.on("success", function (e) {
         e.trigger.classList.add("btn-success");
     });
+
+    // Scroll results into screen.
+    var notes = "releasenotes";
+    var anchor = document.getElementById(notes);
+    if (anchor) {
+        window.location.hash = "#" + notes;
+        anchor.scrollIntoView(true);
+    }
 });

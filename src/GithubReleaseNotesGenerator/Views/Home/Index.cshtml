@@ -7,6 +7,9 @@
 <div class="text-center">
     <h1 class="display-4">Welcome</h1>
     <p>Fill in the form below to generate comprehensive release notes based upon merged pull requests.</p>
+    <p>
+        Full source code is available on <a href="https://github.com/JimBobSquarePants/GithubReleaseNotesGenerator">GitHub</a>.
+    </p>
     <div class="row">
         <div class="col-md-6 offset-md-3">
             <form asp-action="Index" method="post" class="text-left">
@@ -55,6 +58,7 @@
     <br />
     @if (!string.IsNullOrWhiteSpace(Model.RawNotes))
     {
+        <h1 id="releasenotes">Release Notes</h1>
         <div class="text-left">
             <nav>
                 <div class="nav nav-tabs" id="nav-tab" role="tablist">
