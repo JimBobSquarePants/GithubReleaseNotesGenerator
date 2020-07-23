@@ -107,6 +107,7 @@ namespace GithubReleaseNotesGenerator.Infrastructure
             // Get commits for the from/to range
             this.logger.LogInformation($"Get commits from {owner}/{repository} in specified range ({fromRef} - {toRef})");
 
+
             GitHubCommit fromCommit = await this.GitHubClient.Repository.Commit.Get(owner, repository, fromRef).ConfigureAwait(false);
             GitHubCommit toCommit = await this.GitHubClient.Repository.Commit.Get(owner, repository, toRef).ConfigureAwait(false);
 
@@ -124,26 +125,64 @@ namespace GithubReleaseNotesGenerator.Infrastructure
                 State = ItemStateFilter.Closed,
             };
 
-            // TODO: There seems to be no way to limit the first query via date. 
-            // We have to pull all the PRs and filter in memory. This is slow and will only get slower.
-            // I'm not convinced paging will help here.
-            IReadOnlyList<PullRequest> allPullRequests =
-                await this.GitHubClient
-                .PullRequest
-                .GetAllForRepository(owner, repository, pullRequestRequest)
-                .ConfigureAwait(false);
+            // It's faster than using "PullRequest.GetAllForRepository" to do a search issues query and query each PR 
+            // individually. Search results max at 100 items so we request in batches.
+            List<PullRequest> mergedPullRequests = new List<PullRequest>();
+            DateTimeOffset tempFromOffset = fromOffset;
+            while (true)
+            {
+                var prRequest = new SearchIssuesRequest()
+                {
+                    Type = IssueTypeQualifier.PullRequest,
+                    Closed = new DateRange(tempFromOffset, toOffset),
+                    State = ItemState.Closed,
+                    Repos = new RepositoryCollection { $"{owner}/{repository}" }
+                };
 
-            PullRequest[] mergedPullRequests =
-                allPullRequests
-                .Where(x => x.Merged && x.MergedAt >= fromOffset && x.MergedAt <= toOffset)
-                .ToArray();
+                SearchIssuesResult issues = await this.GitHubClient
+                    .Search
+                    .SearchIssues(prRequest)
+                    .ConfigureAwait(false);
 
-            this.logger.LogInformation($"Found {mergedPullRequests.Length} Pull Requests merged in this date range");
+                if (issues.Items?.Count == 0)
+                {
+                    break;
+                }
+
+                // The returned issues do not actually contain the PR information we require so we grab each one.
+                foreach (Issue issue in issues.Items)
+                {
+                    PullRequest pr = await this.GitHubClient
+                        .PullRequest
+                        .Get(owner, repository, issue.Number)
+                        .ConfigureAwait(false);
+
+                    if (pr?.Merged != true)
+                    {
+                        continue;
+                    }
+
+                    // Update the date to get the latest for subsequest queries.
+                    if (tempFromOffset < pr.MergedAt.Value)
+                    {
+                        tempFromOffset = pr.MergedAt.Value;
+                    }
+
+                    mergedPullRequests.Add(pr);
+                }
+
+                if (issues.Items.Count == issues.TotalCount)
+                {
+                    break;
+                }
+            }
+
+            this.logger.LogInformation($"Found {mergedPullRequests.Count} Pull Requests merged in this date range");
             this.logger.LogInformation("Getting details for each Pull Request");
 
             // Now load details about the PullRequests using parallel async tasks
             var result = new List<PullRequestEntry>();
-            for (int i = 0; i < mergedPullRequests.Length; i += batchSize)
+            for (int i = 0; i < mergedPullRequests.Count; i += batchSize)
             {
                 IEnumerable<PullRequest> batchPullRequests = mergedPullRequests
                     .Skip(i)
@@ -157,10 +196,12 @@ namespace GithubReleaseNotesGenerator.Infrastructure
                     .Commits(owner, repository, pull.Number)
                     .ConfigureAwait(false);
 
-                    // Need to load commits individually to get the author details.
+                    // Need to load commits individually to get the full author details.
                     // Using ToList runs the queries in parallel.
                     List<Task<GitHubCommit>> pullRequestFullCommitsTask = pullRequestCommits
-                    .Select(async x => await this.GitHubClient.Repository.Commit.Get(owner, repository, x.Sha).ConfigureAwait(false))
+                    .Select(async x => await this.GitHubClient
+                    .Repository.Commit.Get(owner, repository, x.Sha)
+                    .ConfigureAwait(false))
                     .ToList();
 
                     GitHubCommit[] pullRequestFullCommits = await Task.WhenAll(pullRequestFullCommitsTask).ConfigureAwait(false);
